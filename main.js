@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, screen, Tray, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -11,27 +11,6 @@ let tray = null;
 
 // Define o nome do aplicativo
 app.setName('Tela de Avisos');
-
-// Função para criar o ícone da janela
-function createWindowIcon() {
-    const iconData = `
-        <svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="24" y="44" width="208" height="168" rx="8" stroke="black" stroke-width="16"/>
-            <line x1="24" y1="84" x2="232" y2="84" stroke="black" stroke-width="16"/>
-            <circle cx="52" cy="64" r="8" fill="black"/>
-            <circle cx="84" cy="64" r="8" fill="black"/>
-            <circle cx="116" cy="64" r="8" fill="black"/>
-        </svg>
-    `;
-
-    // Converte o SVG para PNG usando canvas
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    img.src = `data:image/svg+xml;base64,${Buffer.from(iconData).toString('base64')}`;
-
-    return nativeImage.createFromDataURL(img.src);
-}
 
 // Função para carregar a configuração
 function loadConfig() {
@@ -78,18 +57,14 @@ function getCurrentDisplay() {
 
 // Função para criar o ícone na bandeja
 function createTray() {
-    const icon = createWindowIcon();
-    tray = new Tray(icon);
+    tray = new Tray(path.join(__dirname, 'icon.png'));
 
     const contextMenu = Menu.buildFromTemplate([
         {
             label: 'Fechar Tela de Avisos',
             click: () => {
-                if (mainWindow) {
-                    const currentDisplay = getCurrentDisplay();
-                    saveConfig({ lastDisplay: currentDisplay });
-                }
-                app.exit(0);
+                app.isQuitting = true;
+                app.quit();
             }
         }
     ]);
@@ -111,8 +86,6 @@ function createWindow() {
     const targetDisplayIndex = config.lastDisplay < displays.length ? config.lastDisplay : 0;
     const targetDisplay = displays[targetDisplayIndex];
 
-    const icon = createWindowIcon();
-
     mainWindow = new BrowserWindow({
         x: targetDisplay.bounds.x,
         y: targetDisplay.bounds.y,
@@ -125,8 +98,7 @@ function createWindow() {
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js')
         },
-        title: 'Tela de Avisos',
-        icon: icon
+        title: 'Tela de Avisos'
     });
 
     // Define o título da janela
@@ -145,10 +117,10 @@ function createWindow() {
 
     // Salva a configuração antes de fechar
     mainWindow.on('close', (e) => {
-        const currentDisplay = getCurrentDisplay();
-        saveConfig({ lastDisplay: currentDisplay });
         if (!app.isQuitting) {
             e.preventDefault();
+            const currentDisplay = getCurrentDisplay();
+            saveConfig({ lastDisplay: currentDisplay });
         }
     });
 
@@ -243,10 +215,6 @@ app.whenReady().then(() => {
     createWindow();
     createTray();
     setupConnectivityMonitoring();
-});
-
-app.on('before-quit', () => {
-    app.isQuitting = true;
 });
 
 app.on('window-all-closed', () => {
