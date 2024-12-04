@@ -5,9 +5,9 @@
     "main": "main.js",
     "scripts": {
         "start": "electron .",
-        "build": "electron-builder"
+        "build": "electron-builder --win portable --config.win.signAndEditExecutable=false"
     },
-    "author": "",
+    "author": "Bill Barsch",
     "license": "ISC",
     "devDependencies": {
         "electron": "^28.1.0",
@@ -17,7 +17,22 @@
         "appId": "com.telaavisos",
         "productName": "Tela de Avisos",
         "win": {
-            "target": "portable"
-        }
+            "target": [
+                {
+                    "target": "portable",
+                    "arch": [
+                        "x64",
+                        "ia32"
+                    ]
+                }
+            ]
+        },
+        "portable": {
+            "artifactName": "TelaDeAvisos.exe"
+        },
+        "electronVersion": "28.1.0",
+        "compression": "maximum",
+        "asar": true,
+        "forceCodeSigning": false
     }
 }

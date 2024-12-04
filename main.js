@@ -1,14 +1,64 @@
 const { app, BrowserWindow, screen } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 const PLAYLIST_URL = 'https://www.youtube.com/embed/OlHbxpG_vh0?list=PL2iT-_cw7fDVHb7RoI35TSvQSdIexOa9g&autoplay=1&loop=1&controls=0';
+const CONFIG_FILE = path.join(app.getPath('userData'), 'config.json');
 
 let mainWindow = null;
 let isOnline = true;
 
+// Função para carregar a configuração
+function loadConfig() {
+    try {
+        if (fs.existsSync(CONFIG_FILE)) {
+            const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+            return config;
+        }
+    } catch (error) {
+        console.log('Erro ao carregar configuração:', error);
+    }
+    return { lastDisplay: 0 }; // Configuração padrão
+}
+
+// Função para salvar a configuração
+function saveConfig(config) {
+    try {
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config));
+    } catch (error) {
+        console.log('Erro ao salvar configuração:', error);
+    }
+}
+
+// Função para identificar o monitor atual
+function getCurrentDisplay() {
+    if (!mainWindow) return 0;
+
+    const windowBounds = mainWindow.getBounds();
+    const displays = screen.getAllDisplays();
+
+    // Encontra o monitor que contém o centro da janela
+    const centerX = windowBounds.x + windowBounds.width / 2;
+    const centerY = windowBounds.y + windowBounds.height / 2;
+
+    const currentDisplay = displays.findIndex(display => {
+        const bounds = display.bounds;
+        return centerX >= bounds.x &&
+            centerX <= bounds.x + bounds.width &&
+            centerY >= bounds.y &&
+            centerY <= bounds.y + bounds.height;
+    });
+
+    return currentDisplay !== -1 ? currentDisplay : 0;
+}
+
 function createWindow() {
     const displays = screen.getAllDisplays();
-    const targetDisplay = displays[0];
+    const config = loadConfig();
+
+    // Verifica se o índice do monitor salvo ainda é válido
+    const targetDisplayIndex = config.lastDisplay < displays.length ? config.lastDisplay : 0;
+    const targetDisplay = displays[targetDisplayIndex];
 
     mainWindow = new BrowserWindow({
         x: targetDisplay.bounds.x,
@@ -22,6 +72,28 @@ function createWindow() {
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js')
         }
+    });
+
+    // Salva o monitor atual quando a janela é criada
+    const currentDisplay = getCurrentDisplay();
+    saveConfig({ lastDisplay: currentDisplay });
+
+    // Monitora mudanças de posição e tamanho
+    mainWindow.on('moved', () => {
+        const currentDisplay = getCurrentDisplay();
+        saveConfig({ lastDisplay: currentDisplay });
+    });
+
+    mainWindow.on('resize', () => {
+        const currentDisplay = getCurrentDisplay();
+        saveConfig({ lastDisplay: currentDisplay });
+    });
+
+    // Salva a configuração antes de fechar
+    mainWindow.on('close', (e) => {
+        const currentDisplay = getCurrentDisplay();
+        saveConfig({ lastDisplay: currentDisplay });
+        e.preventDefault();
     });
 
     // Carrega a URL usando o modo de incorporação do YouTube
@@ -68,11 +140,6 @@ function createWindow() {
 
     // Mantém a janela sempre no topo
     mainWindow.setAlwaysOnTop(true, 'screen-saver');
-
-    // Previne que a janela seja fechada
-    mainWindow.on('close', (e) => {
-        e.preventDefault();
-    });
 
     // Esconde o cursor do mouse
     mainWindow.webContents.on('dom-ready', () => {
