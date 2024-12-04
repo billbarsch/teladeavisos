@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, Tray, Menu } = require('electron');
+const { app, BrowserWindow, screen, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -11,6 +11,27 @@ let tray = null;
 
 // Define o nome do aplicativo
 app.setName('Tela de Avisos');
+
+// Função para criar o ícone da janela
+function createWindowIcon() {
+    const iconData = `
+        <svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="24" y="44" width="208" height="168" rx="8" stroke="black" stroke-width="16"/>
+            <line x1="24" y1="84" x2="232" y2="84" stroke="black" stroke-width="16"/>
+            <circle cx="52" cy="64" r="8" fill="black"/>
+            <circle cx="84" cy="64" r="8" fill="black"/>
+            <circle cx="116" cy="64" r="8" fill="black"/>
+        </svg>
+    `;
+
+    // Converte o SVG para PNG usando canvas
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.src = `data:image/svg+xml;base64,${Buffer.from(iconData).toString('base64')}`;
+
+    return nativeImage.createFromDataURL(img.src);
+}
 
 // Função para carregar a configuração
 function loadConfig() {
@@ -41,7 +62,6 @@ function getCurrentDisplay() {
     const windowBounds = mainWindow.getBounds();
     const displays = screen.getAllDisplays();
 
-    // Encontra o monitor que contém o centro da janela
     const centerX = windowBounds.x + windowBounds.width / 2;
     const centerY = windowBounds.y + windowBounds.height / 2;
 
@@ -58,7 +78,9 @@ function getCurrentDisplay() {
 
 // Função para criar o ícone na bandeja
 function createTray() {
-    tray = new Tray(path.join(__dirname, 'tray.png'));
+    const icon = createWindowIcon();
+    tray = new Tray(icon);
+
     const contextMenu = Menu.buildFromTemplate([
         {
             label: 'Fechar Tela de Avisos',
@@ -67,21 +89,29 @@ function createTray() {
                     const currentDisplay = getCurrentDisplay();
                     saveConfig({ lastDisplay: currentDisplay });
                 }
-                app.quit();
+                app.exit(0);
             }
         }
     ]);
-    tray.setToolTip('Tela de Avisos');
+
+    // Configura o menu de contexto
     tray.setContextMenu(contextMenu);
+    tray.setToolTip('Tela de Avisos');
+
+    // Adiciona clique esquerdo para abrir o menu
+    tray.on('click', () => {
+        tray.popUpContextMenu();
+    });
 }
 
 function createWindow() {
     const displays = screen.getAllDisplays();
     const config = loadConfig();
 
-    // Verifica se o índice do monitor salvo ainda é válido
     const targetDisplayIndex = config.lastDisplay < displays.length ? config.lastDisplay : 0;
     const targetDisplay = displays[targetDisplayIndex];
+
+    const icon = createWindowIcon();
 
     mainWindow = new BrowserWindow({
         x: targetDisplay.bounds.x,
@@ -95,7 +125,8 @@ function createWindow() {
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js')
         },
-        title: 'Tela de Avisos'
+        title: 'Tela de Avisos',
+        icon: icon
     });
 
     // Define o título da janela
@@ -116,7 +147,9 @@ function createWindow() {
     mainWindow.on('close', (e) => {
         const currentDisplay = getCurrentDisplay();
         saveConfig({ lastDisplay: currentDisplay });
-        e.preventDefault();
+        if (!app.isQuitting) {
+            e.preventDefault();
+        }
     });
 
     // Carrega a URL usando o modo de incorporação do YouTube
@@ -172,7 +205,7 @@ function createWindow() {
     // Monitor de falhas de carregamento
     mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
         console.log('Falha ao carregar:', errorDescription);
-        setTimeout(loadContent, 5000); // Tenta recarregar após 5 segundos
+        setTimeout(loadContent, 5000);
     });
 }
 
@@ -181,36 +214,39 @@ function loadContent() {
     if (mainWindow) {
         mainWindow.loadURL(PLAYLIST_URL).catch(error => {
             console.log('Erro ao carregar:', error);
-            setTimeout(loadContent, 5000); // Tenta novamente após 5 segundos
+            setTimeout(loadContent, 5000);
         });
     }
 }
 
 // Monitor de conectividade
 function setupConnectivityMonitoring() {
-    // Verifica a conexão a cada 5 segundos
     setInterval(() => {
         require('dns').lookup('www.youtube.com', (err) => {
             const wasOnline = isOnline;
             isOnline = !err;
 
-            // Se voltou a ficar online
             if (!wasOnline && isOnline) {
                 console.log('Conexão restaurada, recarregando...');
                 loadContent();
-            }
-            // Se ficou offline
-            else if (wasOnline && !isOnline) {
+            } else if (wasOnline && !isOnline) {
                 console.log('Conexão perdida, aguardando...');
             }
         });
     }, 5000);
 }
 
+// Adiciona flag para controlar o fechamento do app
+app.isQuitting = false;
+
 app.whenReady().then(() => {
     createWindow();
     createTray();
     setupConnectivityMonitoring();
+});
+
+app.on('before-quit', () => {
+    app.isQuitting = true;
 });
 
 app.on('window-all-closed', () => {
