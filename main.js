@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen } = require('electron');
+const { app, BrowserWindow, screen, Tray, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -7,6 +7,10 @@ const CONFIG_FILE = path.join(app.getPath('userData'), 'config.json');
 
 let mainWindow = null;
 let isOnline = true;
+let tray = null;
+
+// Define o nome do aplicativo
+app.setName('Tela de Avisos');
 
 // Função para carregar a configuração
 function loadConfig() {
@@ -52,6 +56,25 @@ function getCurrentDisplay() {
     return currentDisplay !== -1 ? currentDisplay : 0;
 }
 
+// Função para criar o ícone na bandeja
+function createTray() {
+    tray = new Tray(path.join(__dirname, 'tray.png'));
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            label: 'Fechar Tela de Avisos',
+            click: () => {
+                if (mainWindow) {
+                    const currentDisplay = getCurrentDisplay();
+                    saveConfig({ lastDisplay: currentDisplay });
+                }
+                app.quit();
+            }
+        }
+    ]);
+    tray.setToolTip('Tela de Avisos');
+    tray.setContextMenu(contextMenu);
+}
+
 function createWindow() {
     const displays = screen.getAllDisplays();
     const config = loadConfig();
@@ -71,12 +94,12 @@ function createWindow() {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js')
-        }
+        },
+        title: 'Tela de Avisos'
     });
 
-    // Salva o monitor atual quando a janela é criada
-    const currentDisplay = getCurrentDisplay();
-    saveConfig({ lastDisplay: currentDisplay });
+    // Define o título da janela
+    mainWindow.setTitle('Tela de Avisos');
 
     // Monitora mudanças de posição e tamanho
     mainWindow.on('moved', () => {
@@ -186,6 +209,7 @@ function setupConnectivityMonitoring() {
 
 app.whenReady().then(() => {
     createWindow();
+    createTray();
     setupConnectivityMonitoring();
 });
 

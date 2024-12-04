@@ -33,6 +33,9 @@
         "electronVersion": "28.1.0",
         "compression": "maximum",
         "asar": true,
-        "forceCodeSigning": false
+        "forceCodeSigning": false,
+        "extraResources": [
+            "tray.png"
+        ]
     }
 }
