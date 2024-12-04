@@ -1,68 +1,86 @@
 # Tela de Avisos
 
-Aplicativo Electron para exibição de playlist do YouTube em tela cheia, ideal para painéis de avisos e informativos.
+Aplicativo para exibição automática de playlist do YouTube em tela cheia, ideal para painéis de avisos, informativos e TVs corporativas.
 
 ## Características
 
-- Reprodução automática de playlist do YouTube
-- Modo tela cheia sem bordas ou controles
-- Reinício automático da playlist
-- Bloqueio de interações do usuário
-- Reconexão automática em caso de perda de internet
-- Suporte a múltiplos monitores
+- **Reprodução Automática**
+  - Inicia automaticamente a reprodução
+  - Reinicia a playlist quando termina
+  - Continua reproduzindo mesmo após reiniciar o computador
 
-## Requisitos
+- **Interface Limpa**
+  - Modo tela cheia sem bordas
+  - Sem controles visíveis
+  - Sem interferência do usuário
+  - Cursor do mouse oculto
 
-- Node.js (versão 14 ou superior)
-- npm (geralmente vem com o Node.js)
+- **Configuração Fácil**
+  - Interface gráfica para configuração
+  - Suporta qualquer URL de playlist do YouTube
+  - Salva as configurações automaticamente
+  - Acesso rápido pelo ícone na bandeja
+
+- **Recursos Avançados**
+  - Suporte a múltiplos monitores
+  - Lembra o último monitor utilizado
+  - Reconexão automática se perder internet
+  - Proteção contra cliques acidentais
+  - Ícone na bandeja do sistema para controle
+
+## Download
+
+Baixe a última versão do executável em:
+[Releases](https://github.com/billbarsch/teladeavisos/releases)
 
 ## Instalação
 
-1. Clone o repositório:
-```bash
-git clone https://github.com/billbarsch/teladeavisos.git
-cd teladeavisos
-```
+1. Baixe o arquivo `TelaDeAvisos.exe` da página de releases
+2. Execute o arquivo (não precisa instalar)
+3. O programa iniciará automaticamente em tela cheia
+4. Configure a URL da playlist através do ícone na bandeja do sistema
 
-2. Instale as dependências:
-```bash
-npm install
-```
+## Como Usar
 
-## Configuração
+### Configuração Inicial
+1. Clique no ícone do programa na bandeja do sistema (próximo ao relógio)
+2. Selecione "Configurações"
+3. Cole a URL da playlist do YouTube
+4. Clique em "Salvar"
 
-1. Abra o arquivo `main.js` e substitua a URL da playlist:
-```javascript
-const PLAYLIST_URL = 'SUA_URL_DA_PLAYLIST_AQUI';
-```
+### URLs Suportadas
+- URLs de playlist: `https://www.youtube.com/playlist?list=...`
+- URLs de vídeo com playlist: `https://www.youtube.com/watch?v=...&list=...`
+- URLs de vídeo único: `https://www.youtube.com/watch?v=...`
 
-2. Para selecionar um monitor específico, ajuste o índice em:
-```javascript
-const targetDisplay = displays[0]; // 0 para primeiro monitor, 1 para segundo, etc.
-```
+### Controles
+- Para fechar: clique com botão direito no ícone da bandeja e selecione "Fechar"
+- Para configurar: clique com botão direito no ícone da bandeja e selecione "Configurações"
+- Para mudar de monitor: mova a janela para o monitor desejado usando o Gerenciador de Tarefas do Windows
 
-## Desenvolvimento
+## Recursos Técnicos
 
-Para executar em modo de desenvolvimento:
-```bash
-npm start
-```
+- Desenvolvido com Electron
+- Suporte a Windows 7 ou superior
+- Executável portátil (não requer instalação)
+- Baixo consumo de recursos
+- Configurações persistentes entre reinicializações
 
-## Compilação
+## Solução de Problemas
 
-Para gerar o executável:
-```bash
-npm run build
-```
+1. **Vídeo não inicia**
+   - Verifique sua conexão com a internet
+   - Confirme se a URL da playlist está correta
+   - Verifique se a playlist não está privada
 
-O executável será gerado na pasta `dist`.
+2. **Tela preta**
+   - O programa tentará reconectar automaticamente
+   - Verifique sua conexão com a internet
+   - Reinicie o programa se necessário
 
-## Uso
-
-- O aplicativo iniciará em tela cheia no monitor configurado
-- A playlist será reproduzida automaticamente
-- Em caso de perda de conexão, tentará reconectar automaticamente
-- Para fechar o aplicativo, use o Gerenciador de Tarefas do Windows
+3. **Monitor errado**
+   - Use o Gerenciador de Tarefas para mover para o monitor correto
+   - O programa lembrará a última posição
 
 ## Contribuição
 
