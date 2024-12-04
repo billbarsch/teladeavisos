@@ -1,11 +1,12 @@
-const { app, BrowserWindow, screen, Tray, Menu } = require('electron');
+const { app, BrowserWindow, screen, Tray, Menu, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-const PLAYLIST_URL = 'https://www.youtube.com/embed/OlHbxpG_vh0?list=PL2iT-_cw7fDVHb7RoI35TSvQSdIexOa9g&autoplay=1&loop=1&controls=0';
+let PLAYLIST_URL = 'https://www.youtube.com/embed/OlHbxpG_vh0?list=PL2iT-_cw7fDVHb7RoI35TSvQSdIexOa9g&autoplay=1&loop=1&controls=0';
 const CONFIG_FILE = path.join(app.getPath('userData'), 'config.json');
 
 let mainWindow = null;
+let configWindow = null;
 let isOnline = true;
 let tray = null;
 
@@ -17,6 +18,9 @@ function loadConfig() {
     try {
         if (fs.existsSync(CONFIG_FILE)) {
             const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+            if (config.playlistUrl) {
+                PLAYLIST_URL = config.playlistUrl;
+            }
             return config;
         }
     } catch (error) {
@@ -28,10 +32,42 @@ function loadConfig() {
 // Função para salvar a configuração
 function saveConfig(config) {
     try {
-        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config));
+        const currentConfig = loadConfig();
+        const newConfig = { ...currentConfig, ...config };
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(newConfig));
     } catch (error) {
         console.log('Erro ao salvar configuração:', error);
     }
+}
+
+// Função para criar a janela de configurações
+function createConfigWindow() {
+    if (configWindow) {
+        configWindow.focus();
+        return;
+    }
+
+    configWindow = new BrowserWindow({
+        width: 600,
+        height: 400,
+        title: 'Configurações - Tela de Avisos',
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+        },
+        icon: path.join(__dirname, 'icon.png'),
+        resizable: false,
+        minimizable: false,
+        maximizable: false,
+        autoHideMenuBar: true,
+        frame: false
+    });
+
+    configWindow.loadFile('config.html');
+
+    configWindow.on('closed', () => {
+        configWindow = null;
+    });
 }
 
 // Função para identificar o monitor atual
@@ -60,6 +96,13 @@ function createTray() {
     tray = new Tray(path.join(__dirname, 'icon.png'));
 
     const contextMenu = Menu.buildFromTemplate([
+        {
+            label: 'Configurações',
+            click: () => {
+                createConfigWindow();
+            }
+        },
+        { type: 'separator' },
         {
             label: 'Fechar Tela de Avisos',
             click: () => {
@@ -210,6 +253,22 @@ function setupConnectivityMonitoring() {
 
 // Adiciona flag para controlar o fechamento do app
 app.isQuitting = false;
+
+// Configura os eventos IPC para comunicação com a janela de configurações
+ipcMain.on('save-config', (event, config) => {
+    if (config.playlistUrl) {
+        PLAYLIST_URL = config.playlistUrl;
+        saveConfig({ playlistUrl: config.playlistUrl });
+        loadContent(); // Recarrega o conteúdo com a nova URL
+        if (configWindow) {
+            configWindow.close();
+        }
+    }
+});
+
+ipcMain.on('get-config', (event) => {
+    event.reply('config-data', { playlistUrl: PLAYLIST_URL });
+});
 
 app.whenReady().then(() => {
     createWindow();

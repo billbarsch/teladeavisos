@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Configurações - Tela de Avisos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 0;
+            background-color: #f0f0f0;
+            margin: 0;
+            user-select: none;
+        }
+
+        .titlebar {
+            -webkit-app-region: drag;
+            background-color: #333;
+            color: white;
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .titlebar h3 {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .close-button {
+            -webkit-app-region: no-drag;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0 8px;
+        }
+
+        .close-button:hover {
+            color: #ff4444;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="titlebar">
+        <h3>Configurações - Tela de Avisos</h3>
+        <button class="close-button" id="closeButton">×</button>
+    </div>
+    <div class="content">
+        <div class="container">
+            <h2>Configurações</h2>
+            <form id="configForm">
+                <label for="playlistUrl">URL da Playlist:</label>
+                <input type="text" id="playlistUrl" name="playlistUrl" required
+                    placeholder="Cole aqui a URL da playlist do YouTube">
+                <button type="submit">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        // Quando a página carregar, solicita a configuração atual
+        window.addEventListener('DOMContentLoaded', () => {
+            ipcRenderer.send('get-config');
+
+            // Adiciona evento para fechar a janela
+            document.getElementById('closeButton').addEventListener('click', () => {
+                window.close();
+            });
+        });
+
+        // Recebe a configuração atual
+        ipcRenderer.on('config-data', (event, config) => {
+            document.getElementById('playlistUrl').value = config.playlistUrl || '';
+        });
+
+        // Quando o formulário for enviado
+        document.getElementById('configForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const playlistUrl = document.getElementById('playlistUrl').value;
+
+            // Converte a URL para o formato de incorporação se necessário
+            let embedUrl = playlistUrl;
+            if (playlistUrl.includes('youtube.com/playlist?list=')) {
+                const listId = playlistUrl.split('list=')[1].split('&')[0];
+                embedUrl = `https://www.youtube.com/embed/videoseries?list=${listId}&autoplay=1&loop=1&controls=0`;
+            } else if (playlistUrl.includes('youtube.com/watch?v=')) {
+                const videoId = playlistUrl.split('v=')[1].split('&')[0];
+                const listId = playlistUrl.includes('list=') ? playlistUrl.split('list=')[1].split('&')[0] : '';
+                embedUrl = `https://www.youtube.com/embed/${videoId}?list=${listId}&autoplay=1&loop=1&controls=0`;
+            }
+
+            ipcRenderer.send('save-config', { playlistUrl: embedUrl });
+        });
+    </script>
+</body>
+
+</html>
