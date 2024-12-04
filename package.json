@@ -1,0 +1,23 @@
+{
+    "name": "tela-de-avisos",
+    "version": "1.0.0",
+    "description": "Tela de Avisos - Reprodutor de playlist do YouTube em tela cheia",
+    "main": "main.js",
+    "scripts": {
+        "start": "electron .",
+        "build": "electron-builder"
+    },
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "electron": "^28.1.0",
+        "electron-builder": "^24.9.1"
+    },
+    "build": {
+        "appId": "com.telaavisos",
+        "productName": "Tela de Avisos",
+        "win": {
+            "target": "portable"
+        }
+    }
+}
