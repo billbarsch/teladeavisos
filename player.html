@@ -20,6 +20,8 @@
             display: flex;
             width: 100%;
             height: 100%;
+            transition: all 0.3s ease;
+            /* Adiciona transição suave */
         }
 
         #left-sidebar {
@@ -28,6 +30,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: width 0.3s ease;
+            /* Transição suave da largura */
         }
 
         #video-container {
@@ -35,6 +39,8 @@
             height: 100%;
             background-color: #000;
             position: relative;
+            transition: width 0.3s ease;
+            /* Transição suave da largura */
         }
 
         #right-sidebar {
@@ -43,6 +49,20 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: width 0.3s ease;
+            /* Transição suave da largura */
+        }
+
+        /* Quando o mouse está fora da aplicação */
+        body:not(.mouse-over) #video-container {
+            width: 100%;
+            /* O vídeo ocupa toda a largura */
+        }
+
+        body:not(.mouse-over) #left-sidebar,
+        body:not(.mouse-over) #right-sidebar {
+            width: 0%;
+            /* Sidebars com largura zero */
         }
 
         #nav-btn-left,
@@ -85,7 +105,7 @@
             width: 100%;
             height: 100%;
             z-index: 9999998;
-            background-color: rgba(0, 0, 255, 0.1);
+            background-color: rgba(0, 0, 255, 0);
             /* Azul com 10% de opacidade, sempre presente */
             pointer-events: none;
             /* Permite que os cliques passem através dele por padrão */
@@ -132,15 +152,22 @@
 
             // Detectar quando o mouse entra na página
             document.body.addEventListener('mouseenter', () => {
-                console.log('Mouse entrou na janela - mostrando botões');
+                console.log('Mouse entrou na janela - mostrando botões e ajustando layout');
                 document.body.classList.add('mouse-over');
             });
 
             // Detectar quando o mouse sai da página
             document.body.addEventListener('mouseleave', () => {
-                console.log('Mouse saiu da janela - escondendo botões');
+                console.log('Mouse saiu da janela - escondendo botões e expandindo vídeo');
                 document.body.classList.remove('mouse-over');
             });
+
+            // Iniciar com o mouse "fora" da aplicação
+            if (document.body.matches(':hover')) {
+                document.body.classList.add('mouse-over');
+            } else {
+                document.body.classList.remove('mouse-over');
+            }
         });
     </script>
 </body>
