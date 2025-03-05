@@ -90,6 +90,27 @@ Baixe a última versão do executável em:
 4. Push para a Branch (`git push origin feature/AmazingFeature`)
 5. Abra um Pull Request
 
+## Desenvolvimento
+
+Para executar o projeto em modo de desenvolvimento:
+
+```bash
+# Instalar dependências
+npm install
+
+# Executar o aplicativo em modo de desenvolvimento
+npm start
+```
+
+Para criar o executável portátil:
+
+```bash
+# Gerar executável para distribuição
+npm run build
+```
+
+O executável será gerado na pasta `dist/`.
+
 ## Licença
 
 Este projeto está licenciado sob a Licença ISC - veja o arquivo [LICENSE](LICENSE) para detalhes.

@@ -104,6 +104,33 @@
                 <label for="playlistUrl">URL da Playlist:</label>
                 <input type="text" id="playlistUrl" name="playlistUrl" required
                     placeholder="Cole aqui a URL da playlist do YouTube">
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: flex; align-items: center; font-weight: normal;">
+                        <input type="checkbox" id="blockClicks" name="blockClicks" style="margin-right: 10px;">
+                        Bloquear cliques na tela (recomendado para evitar interação indesejada)
+                    </label>
+                </div>
+
+                <h3 style="margin-top: 30px; margin-bottom: 15px; color: #555; font-size: 16px;">Configurações de
+                    Recarga Automática</h3>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; font-weight: normal;">
+                        <input type="checkbox" id="autoReloadEnabled" name="autoReloadEnabled"
+                            style="margin-right: 10px;">
+                        Ativar recarga automática periódica
+                    </label>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label for="autoReloadHours" style="font-weight: normal; margin-bottom: 5px;">
+                        Intervalo de recarga (horas):
+                    </label>
+                    <input type="number" id="autoReloadHours" name="autoReloadHours" min="1" max="168" step="1"
+                        style="width: 80px; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+
                 <button type="submit">Salvar</button>
             </form>
         </div>
@@ -125,12 +152,18 @@
         // Recebe a configuração atual
         ipcRenderer.on('config-data', (event, config) => {
             document.getElementById('playlistUrl').value = config.playlistUrl || '';
+            document.getElementById('blockClicks').checked = config.blockClicks !== false; // Por padrão é true se não definido
+            document.getElementById('autoReloadEnabled').checked = config.autoReloadEnabled !== false; // Por padrão é true se não definido
+            document.getElementById('autoReloadHours').value = config.autoReloadHours || 8; // Por padrão é 8 horas se não definido
         });
 
         // Quando o formulário for enviado
         document.getElementById('configForm').addEventListener('submit', (e) => {
             e.preventDefault();
             const playlistUrl = document.getElementById('playlistUrl').value;
+            const blockClicks = document.getElementById('blockClicks').checked;
+            const autoReloadEnabled = document.getElementById('autoReloadEnabled').checked;
+            const autoReloadHours = parseInt(document.getElementById('autoReloadHours').value, 10) || 8;
 
             // Converte a URL para o formato de incorporação se necessário
             let embedUrl = playlistUrl;
@@ -143,7 +176,12 @@
                 embedUrl = `https://www.youtube.com/embed/${videoId}?list=${listId}&autoplay=1&loop=1&controls=0`;
             }
 
-            ipcRenderer.send('save-config', { playlistUrl: embedUrl });
+            ipcRenderer.send('save-config', {
+                playlistUrl: embedUrl,
+                blockClicks: blockClicks,
+                autoReloadEnabled: autoReloadEnabled,
+                autoReloadHours: autoReloadHours
+            });
         });
     </script>
 </body>

@@ -1,0 +1,13 @@
+{
+  ".gitignore",
+  ".treeignore",
+  "README.md",
+  "TelaDeAvisos-v1.0.0.exe",
+  "config.html",
+  "estrutura-do-projeto.js",
+  "icon.png",
+  "main.js",
+  "package.json",
+  "preload.js",
+  "tree.sh"
+}
