@@ -1,22 +1,19 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Log para verificar se o preload está sendo executado
-console.log('Preload script iniciado');
-
 // Expõe uma API limitada para o processo de renderização
 contextBridge.exposeInMainWorld('electronAPI', {
     moveWindow: (direction) => {
-        console.log(`Preload: moveWindow chamado com direção ${direction}`);
         ipcRenderer.send('move-window', direction);
+    },
+    onLoadVideoFiles: (callback) => {
+        ipcRenderer.on('load-video-files', (event, videoFiles) => {
+            callback(videoFiles);
+        });
     }
 });
 
-console.log('API exposta com sucesso:', 'moveWindow');
-
 // Adiciona eventos assim que o DOM estiver pronto
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM carregado, configurando eventos básicos');
-
     // Monitorar clicks para permitir apenas nos botões de navegação quando o bloqueio estiver ativo
     document.addEventListener('click', (e) => {
         // Verificar se o elemento clicado é um dos botões de navegação
@@ -31,7 +28,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
         if (isBlockingEnabled && !isNavigationButton) {
             // Bloquear cliques fora dos botões de navegação quando o bloqueio está ativo
-            console.log('Bloqueando clique:', e.target);
             e.preventDefault();
             e.stopPropagation();
             return false;

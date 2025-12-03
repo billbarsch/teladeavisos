@@ -89,6 +89,22 @@
         button:hover {
             background-color: #45a049;
         }
+
+        .folder-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .folder-selector input[type="text"] {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .folder-selector button {
+            padding: 12px 20px;
+            white-space: nowrap;
+        }
     </style>
 </head>
 
@@ -101,9 +117,12 @@
         <div class="container">
             <h2>Configurações</h2>
             <form id="configForm">
-                <label for="playlistUrl">URL da Playlist:</label>
-                <input type="text" id="playlistUrl" name="playlistUrl" required
-                    placeholder="Cole aqui a URL da playlist do YouTube">
+                <label for="folderPath">Pasta de Vídeos:</label>
+                <div class="folder-selector">
+                    <input type="text" id="folderPath" name="folderPath" readonly required
+                        placeholder="Selecione uma pasta contendo vídeos">
+                    <button type="button" id="selectFolderBtn">Selecionar Pasta</button>
+                </div>
 
                 <div style="margin-bottom: 20px;">
                     <label style="display: flex; align-items: center; font-weight: normal;">
@@ -147,37 +166,43 @@
             document.getElementById('closeButton').addEventListener('click', () => {
                 window.close();
             });
+
+            // Botão para selecionar pasta
+            document.getElementById('selectFolderBtn').addEventListener('click', () => {
+                ipcRenderer.send('select-folder');
+            });
+
+            // Recebe a pasta selecionada
+            ipcRenderer.on('folder-selected', (event, folderPath) => {
+                if (folderPath) {
+                    document.getElementById('folderPath').value = folderPath;
+                }
+            });
         });
 
         // Recebe a configuração atual
         ipcRenderer.on('config-data', (event, config) => {
-            document.getElementById('playlistUrl').value = config.playlistUrl || '';
-            document.getElementById('blockClicks').checked = config.blockClicks !== false; // Por padrão é true se não definido
-            document.getElementById('autoReloadEnabled').checked = config.autoReloadEnabled !== false; // Por padrão é true se não definido
-            document.getElementById('autoReloadHours').value = config.autoReloadHours || 8; // Por padrão é 8 horas se não definido
+            document.getElementById('folderPath').value = config.folderPath || '';
+            document.getElementById('blockClicks').checked = config.blockClicks !== false;
+            document.getElementById('autoReloadEnabled').checked = config.autoReloadEnabled !== false;
+            document.getElementById('autoReloadHours').value = config.autoReloadHours || 8;
         });
 
         // Quando o formulário for enviado
         document.getElementById('configForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            const playlistUrl = document.getElementById('playlistUrl').value;
+            const folderPath = document.getElementById('folderPath').value;
             const blockClicks = document.getElementById('blockClicks').checked;
             const autoReloadEnabled = document.getElementById('autoReloadEnabled').checked;
             const autoReloadHours = parseInt(document.getElementById('autoReloadHours').value, 10) || 8;
 
-            // Converte a URL para o formato de incorporação se necessário
-            let embedUrl = playlistUrl;
-            if (playlistUrl.includes('youtube.com/playlist?list=')) {
-                const listId = playlistUrl.split('list=')[1].split('&')[0];
-                embedUrl = `https://www.youtube.com/embed/videoseries?list=${listId}&autoplay=1&loop=1&controls=0`;
-            } else if (playlistUrl.includes('youtube.com/watch?v=')) {
-                const videoId = playlistUrl.split('v=')[1].split('&')[0];
-                const listId = playlistUrl.includes('list=') ? playlistUrl.split('list=')[1].split('&')[0] : '';
-                embedUrl = `https://www.youtube.com/embed/${videoId}?list=${listId}&autoplay=1&loop=1&controls=0`;
+            if (!folderPath) {
+                alert('Por favor, selecione uma pasta contendo vídeos.');
+                return;
             }
 
             ipcRenderer.send('save-config', {
-                playlistUrl: embedUrl,
+                folderPath: folderPath,
                 blockClicks: blockClicks,
                 autoReloadEnabled: autoReloadEnabled,
                 autoReloadHours: autoReloadHours

@@ -126,6 +126,15 @@
             height: 100%;
             border: none;
         }
+
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
     </style>
 </head>
 
@@ -148,17 +157,13 @@
     <script>
         // Este script será executado quando a página carregar
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('Player HTML carregado com sucesso');
-
             // Detectar quando o mouse entra na página
             document.body.addEventListener('mouseenter', () => {
-                console.log('Mouse entrou na janela - mostrando botões e ajustando layout');
                 document.body.classList.add('mouse-over');
             });
 
             // Detectar quando o mouse sai da página
             document.body.addEventListener('mouseleave', () => {
-                console.log('Mouse saiu da janela - escondendo botões e expandindo vídeo');
                 document.body.classList.remove('mouse-over');
             });
 
@@ -168,7 +173,108 @@
             } else {
                 document.body.classList.remove('mouse-over');
             }
+
+            // Configurar listener para receber lista de vídeos locais
+            if (window.electronAPI && window.electronAPI.onLoadVideoFiles) {
+                window.electronAPI.onLoadVideoFiles((videoFiles) => {
+                    if (!videoFiles || videoFiles.length === 0) {
+                        return;
+                    }
+                    
+                    if (!window.videoPlayer) {
+                        // Primeira vez, configura o player
+                        setupLocalVideoPlayer(videoFiles);
+                    } else {
+                        // Atualiza apenas a lista mantendo o índice atual se possível
+                        const currentIndex = window.currentVideoIndex || 0;
+                        window.videoFiles = videoFiles;
+                        // Se o índice atual ainda é válido, mantém; senão, volta para 0
+                        if (currentIndex >= videoFiles.length) {
+                            window.currentVideoIndex = 0;
+                        }
+                    }
+                });
+            }
         });
+
+        // Função para configurar o player de vídeo local
+        function setupLocalVideoPlayer(videoFiles) {
+            const container = document.getElementById('video-container');
+            
+            if (!container) {
+                return;
+            }
+            
+            // Limpa o container e cria o elemento de vídeo se não existir
+            let videoPlayer = document.getElementById('local-video-player');
+            if (!videoPlayer) {
+                container.innerHTML = '<video id="local-video-player" autoplay></video>';
+                videoPlayer = document.getElementById('local-video-player');
+            }
+
+            // Armazena referências globais
+            window.videoPlayer = videoPlayer;
+            window.videoFiles = videoFiles;
+            window.currentVideoIndex = 0;
+
+            // Remove listeners anteriores se existirem
+            const newVideoPlayer = videoPlayer.cloneNode(true);
+            videoPlayer.parentNode.replaceChild(newVideoPlayer, videoPlayer);
+            videoPlayer = newVideoPlayer;
+
+            // Função para carregar próximo vídeo
+            function loadNextVideo() {
+                if (!window.videoFiles || window.videoFiles.length === 0) {
+                    return;
+                }
+
+                if (window.currentVideoIndex >= window.videoFiles.length) {
+                    window.currentVideoIndex = 0; // Loop infinito
+                }
+
+                const videoPath = window.videoFiles[window.currentVideoIndex];
+                
+                // Converte o caminho para formato file://
+                // Remove barras invertidas e converte para formato URL
+                let normalizedPath = videoPath.replace(/\\/g, '/');
+                
+                // Se começar com letra de unidade (ex: C:/), converte para formato file://
+                if (normalizedPath.match(/^[A-Z]:/)) {
+                    normalizedPath = normalizedPath.replace(/^([A-Z]):/, (match, drive) => '/' + drive.toLowerCase() + ':');
+                }
+                
+                const fileUrl = 'file://' + normalizedPath;
+                videoPlayer.src = fileUrl;
+            }
+
+            // Quando o vídeo terminar, carrega o próximo
+            videoPlayer.addEventListener('ended', () => {
+                window.currentVideoIndex++;
+                loadNextVideo();
+            });
+
+            // Quando há erro no vídeo, pula para o próximo
+            videoPlayer.addEventListener('error', () => {
+                window.currentVideoIndex++;
+                setTimeout(loadNextVideo, 1000); // Aguarda 1 segundo antes de tentar o próximo
+            });
+
+            // Quando o vídeo está pronto para reproduzir
+            videoPlayer.addEventListener('loadeddata', () => {
+                videoPlayer.play().catch(() => {
+                    window.currentVideoIndex++;
+                    setTimeout(loadNextVideo, 1000);
+                });
+            });
+
+            // Quando o vídeo pode começar a reproduzir
+            videoPlayer.addEventListener('canplay', () => {
+                videoPlayer.play().catch(() => {});
+            });
+
+            // Inicia o primeiro vídeo
+            loadNextVideo();
+        }
     </script>
 </body>
 

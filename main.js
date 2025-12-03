@@ -1,16 +1,20 @@
-const { app, BrowserWindow, screen, Tray, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, screen, Tray, Menu, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-let PLAYLIST_URL = 'https://www.youtube.com/embed/OlHbxpG_vh0?list=PL2iT-_cw7fDVHb7RoI35TSvQSdIexOa9g&autoplay=1&loop=1&controls=0';
+let FOLDER_PATH = ''; // Caminho da pasta de vídeos
 let BLOCK_CLICKS = true; // Por padrão, bloqueia cliques
 let AUTO_RELOAD_ENABLED = true; // Por padrão, ativa o reload automático
 let AUTO_RELOAD_HOURS = 8; // Por padrão, recarrega a cada 8 horas
 const CONFIG_FILE = path.join(app.getPath('userData'), 'config.json');
 
+// Variáveis para controle de vídeos locais
+let videoFiles = []; // Lista de arquivos de vídeo
+let currentVideoIndex = 0; // Índice do vídeo atual
+let folderWatcher = null; // Watcher para monitorar mudanças na pasta
+
 let mainWindow = null;
 let configWindow = null;
-let isOnline = true;
 let tray = null;
 let autoReloadTimer = null; // Timer para controlar o reload automático
 
@@ -29,8 +33,8 @@ function loadConfig() {
                     const config = JSON.parse(fileContent);
 
                     // Atualiza as variáveis globais com as configurações carregadas
-                    if (config.playlistUrl) {
-                        PLAYLIST_URL = config.playlistUrl;
+                    if (config.folderPath) {
+                        FOLDER_PATH = config.folderPath;
                     }
                     if (config.blockClicks !== undefined) {
                         BLOCK_CLICKS = config.blockClicks;
@@ -42,19 +46,14 @@ function loadConfig() {
                         AUTO_RELOAD_HOURS = config.autoReloadHours;
                     }
 
-                    console.log('Configuração carregada:', config);
                     return config;
                 } catch (parseError) {
-                    console.log('Erro ao analisar arquivo de configuração:', parseError);
+                    // Ignora erro de parsing
                 }
-            } else {
-                console.log('Arquivo de configuração está vazio');
             }
-        } else {
-            console.log('Arquivo de configuração não encontrado, usando padrões');
         }
     } catch (error) {
-        console.log('Erro ao carregar configuração:', error);
+        // Ignora erro ao carregar configuração
     }
 
     // Configuração padrão se não conseguimos carregar do arquivo
@@ -64,6 +63,79 @@ function loadConfig() {
         autoReloadEnabled: true,
         autoReloadHours: 8
     };
+}
+
+// Função para obter extensões de vídeo suportadas
+function getVideoExtensions() {
+    return ['.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ogv'];
+}
+
+// Função para ler vídeos de uma pasta
+function getVideoFilesFromFolder(folderPath) {
+    try {
+        if (!fs.existsSync(folderPath)) {
+            return [];
+        }
+
+        const files = fs.readdirSync(folderPath);
+        const videoExtensions = getVideoExtensions();
+
+        const videoFiles = files
+            .filter(file => {
+                const ext = path.extname(file).toLowerCase();
+                return videoExtensions.includes(ext);
+            })
+            .map(file => path.join(folderPath, file))
+            .sort(); // Ordena alfabeticamente
+
+        return videoFiles;
+    } catch (error) {
+        return [];
+    }
+}
+
+// Função para monitorar mudanças na pasta
+function watchFolder(folderPath) {
+    // Remove watcher anterior se existir
+    if (folderWatcher) {
+        folderWatcher.close();
+        folderWatcher = null;
+    }
+
+    if (!folderPath || !fs.existsSync(folderPath)) {
+        return;
+    }
+
+    try {
+        folderWatcher = fs.watch(folderPath, (eventType, filename) => {
+            console.log(`Mudança detectada na pasta: ${eventType} - ${filename}`);
+            // Aguarda um pouco antes de recarregar para garantir que o arquivo foi completamente escrito
+            setTimeout(() => {
+                // Recarrega a lista de vídeos quando há mudanças
+                const oldCount = videoFiles.length;
+                videoFiles = getVideoFilesFromFolder(folderPath);
+                const newCount = videoFiles.length;
+
+                console.log(`Lista de vídeos atualizada: ${oldCount} -> ${newCount} vídeos`);
+
+                // Atualiza a lista de vídeos
+                if (mainWindow) {
+                    updateVideoList();
+                }
+            }, 500); // Aguarda 500ms antes de atualizar
+        });
+        console.log('Monitoramento da pasta ativado:', folderPath);
+    } catch (error) {
+        console.error('Erro ao monitorar pasta:', error);
+    }
+}
+
+// Função para atualizar a lista de vídeos no player
+function updateVideoList() {
+    if (!mainWindow) return;
+
+    // Envia a lista atualizada via IPC
+    mainWindow.webContents.send('load-video-files', videoFiles);
 }
 
 // Função para salvar a configuração
@@ -76,7 +148,6 @@ function saveConfig(config) {
             try {
                 currentConfig = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
             } catch (parseError) {
-                console.log('Erro ao analisar o arquivo de configuração existente:', parseError);
                 // Em caso de erro de parsing, usamos um objeto vazio
                 currentConfig = {};
             }
@@ -87,10 +158,8 @@ function saveConfig(config) {
 
         // Salvamos no arquivo
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(newConfig));
-
-        console.log('Configuração salva:', newConfig);
     } catch (error) {
-        console.log('Erro ao salvar configuração:', error);
+        // Ignora erro ao salvar configuração
     }
 }
 
@@ -218,10 +287,16 @@ function createWindow() {
             e.preventDefault();
             const currentDisplay = getCurrentDisplay();
             saveConfig({ lastDisplay: currentDisplay });
+        } else {
+            // Fecha o watcher da pasta quando o app está fechando
+            if (folderWatcher) {
+                folderWatcher.close();
+                folderWatcher = null;
+            }
         }
     });
 
-    // Carrega a URL usando o modo de incorporação do YouTube
+    // Carrega o conteúdo (vídeos da pasta)
     loadContent();
 
     // Desabilita o menu
@@ -231,8 +306,7 @@ function createWindow() {
     mainWindow.setAlwaysOnTop(true, 'screen-saver');
 
     // Monitor de falhas de carregamento
-    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-        console.log('Falha ao carregar:', errorDescription);
+    mainWindow.webContents.on('did-fail-load', () => {
         setTimeout(loadContent, 5000);
     });
 }
@@ -242,89 +316,86 @@ function loadContent() {
     if (mainWindow) {
         // Carrega a página HTML base
         mainWindow.loadFile(path.join(__dirname, 'player.html')).catch(error => {
-            console.log('Erro ao carregar página base:', error);
             setTimeout(loadContent, 5000);
         });
 
-        // Após carregar a página base, configuramos o iframe e eventos
+        // Após carregar a página base, configuramos o conteúdo
         mainWindow.webContents.once('did-finish-load', () => {
-            console.log('Página base carregada, configurando iframe e eventos...');
+            // Modo pasta do sistema
+            videoFiles = getVideoFilesFromFolder(FOLDER_PATH);
 
-            // Inserir o iframe diretamente
-            mainWindow.webContents.executeJavaScript(`
-                // Substituir o placeholder pelo iframe
-                document.getElementById('video-container').innerHTML = '<iframe src="${PLAYLIST_URL}" frameborder="0" allowfullscreen allow="autoplay"></iframe>';
-                console.log('Iframe inserido com sucesso');
-            `).catch(err => console.error('Erro ao inserir iframe:', err));
+            if (videoFiles.length === 0) {
+                mainWindow.webContents.executeJavaScript(`
+                    document.getElementById('video-container').innerHTML = 
+                        '<div style="color: white; display: flex; align-items: center; justify-content: center; height: 100%; font-size: 24px;">Nenhum vídeo encontrado na pasta selecionada</div>';
+                `).catch(() => { });
+                return;
+            }
+
+            // Inicia o monitoramento da pasta
+            watchFolder(FOLDER_PATH);
+
+            // Envia a lista de vídeos via IPC (o player.html vai configurar o player)
+            mainWindow.webContents.send('load-video-files', videoFiles);
 
             // Configurar os botões de navegação
-            mainWindow.webContents.executeJavaScript(`
-                // Configurar eventos para os botões de navegação
-                document.getElementById('nav-btn-left').addEventListener('click', () => {
-                    console.log('Botão esquerdo clicado');
-                    window.electronAPI.moveWindow('left');
-                });
-                
-                document.getElementById('nav-btn-right').addEventListener('click', () => {
-                    console.log('Botão direito clicado');
-                    window.electronAPI.moveWindow('right');
-                });
-                
-                console.log('Eventos dos botões configurados');
-            `).catch(err => console.error('Erro ao configurar eventos dos botões:', err));
+            setTimeout(() => {
+                mainWindow.webContents.executeJavaScript(`
+                    if (window.electronAPI) {
+                        document.getElementById('nav-btn-left').addEventListener('click', () => {
+                            window.electronAPI.moveWindow('left');
+                        });
+                        
+                        document.getElementById('nav-btn-right').addEventListener('click', () => {
+                            window.electronAPI.moveWindow('right');
+                        });
+                    }
+                `).catch(() => { });
+            }, 1000);
 
             // Configurar o bloqueador de cliques baseado na configuração
             const configScript = BLOCK_CLICKS ?
                 `
-                // Aplicar classe de bloqueio
                 const blocker = document.getElementById('click-blocker');
                 if (blocker) {
                     blocker.classList.add('block-clicks');
-                    console.log('Bloqueio de cliques ATIVADO');
                 }
                 ` :
                 `
-                // Remover classe de bloqueio
                 const blocker = document.getElementById('click-blocker');
                 if (blocker) {
                     blocker.classList.remove('block-clicks');
-                    console.log('Bloqueio de cliques DESATIVADO');
                 }
                 `;
 
             mainWindow.webContents.executeJavaScript(configScript)
-                .catch(err => console.error('Erro ao configurar bloqueador de cliques:', err));
+                .catch(() => { });
         });
     }
 }
 
-// Monitor de conectividade
-function setupConnectivityMonitoring() {
-    setInterval(() => {
-        require('dns').lookup('www.youtube.com', (err) => {
-            const wasOnline = isOnline;
-            isOnline = !err;
-
-            if (!wasOnline && isOnline) {
-                console.log('Conexão restaurada, recarregando...');
-                loadContent();
-            } else if (wasOnline && !isOnline) {
-                console.log('Conexão perdida, aguardando...');
-            }
-        });
-    }, 5000);
-}
 
 // Adiciona flag para controlar o fechamento do app
 app.isQuitting = false;
 
+// Handler para seleção de pasta
+ipcMain.on('select-folder', async (event) => {
+    const result = await dialog.showOpenDialog(configWindow || null, {
+        properties: ['openDirectory'],
+        title: 'Selecione a pasta contendo os vídeos'
+    });
+
+    if (!result.canceled && result.filePaths.length > 0) {
+        const selectedPath = result.filePaths[0];
+        event.reply('folder-selected', selectedPath);
+    }
+});
+
 // Configura os eventos IPC para comunicação com a janela de configurações
 ipcMain.on('save-config', (event, config) => {
-    console.log('Recebendo novas configurações:', config);
-
     // Atualiza as variáveis globais
-    if (config.playlistUrl) {
-        PLAYLIST_URL = config.playlistUrl;
+    if (config.folderPath) {
+        FOLDER_PATH = config.folderPath;
     }
 
     // Atualiza a configuração de bloqueio de cliques
@@ -332,25 +403,22 @@ ipcMain.on('save-config', (event, config) => {
         BLOCK_CLICKS = config.blockClicks;
         // Aplicar imediatamente ao mainWindow se existir
         if (mainWindow) {
-            console.log('Atualizando configuração de bloqueio de cliques em tempo real:', BLOCK_CLICKS);
             const script = BLOCK_CLICKS ?
                 `
                 const blocker = document.getElementById('click-blocker');
                 if (blocker) {
                     blocker.classList.add('block-clicks');
-                    console.log('Bloqueio de cliques ATIVADO');
                 }
                 ` :
                 `
                 const blocker = document.getElementById('click-blocker');
                 if (blocker) {
                     blocker.classList.remove('block-clicks');
-                    console.log('Bloqueio de cliques DESATIVADO');
                 }
                 `;
 
             mainWindow.webContents.executeJavaScript(script)
-                .catch(err => console.error('Erro ao atualizar bloqueio de cliques:', err));
+                .catch(() => { });
         }
     }
 
@@ -365,14 +433,11 @@ ipcMain.on('save-config', (event, config) => {
 
     // Salva as configurações atualizadas no arquivo
     saveConfig({
-        playlistUrl: PLAYLIST_URL,
+        folderPath: FOLDER_PATH,
         blockClicks: BLOCK_CLICKS,
         autoReloadEnabled: AUTO_RELOAD_ENABLED,
         autoReloadHours: AUTO_RELOAD_HOURS
     });
-
-    console.log('Aplicando configurações: URL =', PLAYLIST_URL, 'Bloquear Cliques =', BLOCK_CLICKS,
-        'Reload Automático =', AUTO_RELOAD_ENABLED, 'Intervalo (horas) =', AUTO_RELOAD_HOURS);
 
     // Reconfigura o timer de reload automático com as novas configurações
     setupAutoReload();
@@ -388,7 +453,7 @@ ipcMain.on('save-config', (event, config) => {
 
 ipcMain.on('get-config', (event) => {
     event.reply('config-data', {
-        playlistUrl: PLAYLIST_URL,
+        folderPath: FOLDER_PATH,
         blockClicks: BLOCK_CLICKS,
         autoReloadEnabled: AUTO_RELOAD_ENABLED,
         autoReloadHours: AUTO_RELOAD_HOURS
@@ -399,11 +464,8 @@ ipcMain.on('get-config', (event) => {
 ipcMain.on('move-window', (event, direction) => {
     if (!mainWindow) return;
 
-    console.log(`Movendo janela para: ${direction}`);
-
     const displays = screen.getAllDisplays();
     if (displays.length <= 1) {
-        console.log('Apenas um monitor detectado, não é possível mover.');
         return;
     }
 
@@ -432,8 +494,6 @@ ipcMain.on('move-window', (event, direction) => {
 
     // Salva a nova posição nas configurações
     saveConfig({ lastDisplay: targetDisplayIndex });
-
-    console.log(`Janela movida para o monitor ${targetDisplayIndex}`);
 });
 
 // Função para configurar o timer de reload automático
@@ -446,18 +506,14 @@ function setupAutoReload() {
 
     // Se o reload automático estiver desativado, retorna sem fazer nada
     if (!AUTO_RELOAD_ENABLED) {
-        console.log('Reload automático desativado');
         return;
     }
 
     // Converte horas para milissegundos
     const intervalMs = AUTO_RELOAD_HOURS * 60 * 60 * 1000;
 
-    console.log(`Configurando reload automático a cada ${AUTO_RELOAD_HOURS} hora(s) (${intervalMs}ms)`);
-
     // Configura novo timer
     autoReloadTimer = setInterval(() => {
-        console.log(`Executando reload automático programado (intervalo: ${AUTO_RELOAD_HOURS} hora(s))`);
         if (mainWindow) {
             loadContent();
         }
@@ -465,19 +521,31 @@ function setupAutoReload() {
 }
 
 app.on('ready', () => {
+    // Carrega configurações antes de inicializar
+    loadConfig();
+
     // Inicializa a janela principal
     createWindow();
     // Configura o tray icon
     createTray();
-    // Inicia o monitoramento de conectividade
-    setupConnectivityMonitoring();
     // Inicia o sistema de auto-reload se estiver ativado
     if (AUTO_RELOAD_ENABLED) {
         setupAutoReload();
     }
+
+    // Inicia o monitoramento da pasta se houver uma pasta configurada
+    if (FOLDER_PATH) {
+        watchFolder(FOLDER_PATH);
+    }
 });
 
 app.on('window-all-closed', () => {
+    // Fecha o watcher da pasta antes de fechar
+    if (folderWatcher) {
+        folderWatcher.close();
+        folderWatcher = null;
+    }
+
     if (process.platform !== 'darwin') {
         app.quit();
     }

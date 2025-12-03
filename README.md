@@ -1,31 +1,34 @@
 # Tela de Avisos
 
-Aplicativo para exibição automática de playlist do YouTube em tela cheia, ideal para painéis de avisos, informativos e TVs corporativas.
+Aplicativo para exibição automática de vídeos locais em tela cheia, ideal para painéis de avisos, informativos e TVs corporativas. Reproduz vídeos de uma pasta do sistema em sequência e loop infinito.
 
 ## Características
 
 - **Reprodução Automática**
   - Inicia automaticamente a reprodução
-  - Reinicia a playlist quando termina
+  - Reproduz vídeos em sequência
+  - Loop infinito (volta ao primeiro vídeo após o último)
   - Continua reproduzindo mesmo após reiniciar o computador
 
 - **Interface Limpa**
   - Modo tela cheia sem bordas
   - Sem controles visíveis
   - Sem interferência do usuário
-  - Cursor do mouse oculto
+  - Botões de navegação aparecem apenas ao passar o mouse
 
 - **Configuração Fácil**
   - Interface gráfica para configuração
-  - Suporta qualquer URL de playlist do YouTube
+  - Seleção de pasta do sistema contendo vídeos
   - Salva as configurações automaticamente
   - Acesso rápido pelo ícone na bandeja
 
 - **Recursos Avançados**
   - Suporte a múltiplos monitores
   - Lembra o último monitor utilizado
-  - Reconexão automática se perder internet
+  - Monitoramento automático de novos vídeos na pasta
+  - Detecta automaticamente quando novos vídeos são adicionados
   - Proteção contra cliques acidentais
+  - Recarga automática periódica configurável
   - Ícone na bandeja do sistema para controle
 
 ## Download
@@ -38,49 +41,69 @@ Baixe a última versão do executável em:
 1. Baixe o arquivo `TelaDeAvisos.exe` da página de releases
 2. Execute o arquivo (não precisa instalar)
 3. O programa iniciará automaticamente em tela cheia
-4. Configure a URL da playlist através do ícone na bandeja do sistema
+4. Configure a pasta de vídeos através do ícone na bandeja do sistema
 
 ## Como Usar
 
 ### Configuração Inicial
 1. Clique no ícone do programa na bandeja do sistema (próximo ao relógio)
 2. Selecione "Configurações"
-3. Cole a URL da playlist do YouTube
-4. Clique em "Salvar"
+3. Clique em "Selecionar Pasta" e escolha a pasta contendo seus vídeos
+4. Configure outras opções conforme necessário:
+   - Bloquear cliques na tela (recomendado)
+   - Ativar recarga automática periódica
+   - Intervalo de recarga em horas
+5. Clique em "Salvar"
 
-### URLs Suportadas
-- URLs de playlist: `https://www.youtube.com/playlist?list=...`
-- URLs de vídeo com playlist: `https://www.youtube.com/watch?v=...&list=...`
-- URLs de vídeo único: `https://www.youtube.com/watch?v=...`
+### Formatos de Vídeo Suportados
+O aplicativo suporta os seguintes formatos de vídeo:
+- MP4, AVI, MOV, MKV, WMV, FLV, WEBM, M4V, 3GP, OGV
+
+### Como Funciona
+- O aplicativo lê todos os vídeos da pasta selecionada
+- Reproduz os vídeos em ordem alfabética
+- Quando um vídeo termina, passa automaticamente para o próximo
+- Ao chegar no último vídeo, volta ao primeiro (loop infinito)
+- Detecta automaticamente quando novos vídeos são adicionados à pasta
 
 ### Controles
-- Para fechar: clique com botão direito no ícone da bandeja e selecione "Fechar"
-- Para configurar: clique com botão direito no ícone da bandeja e selecione "Configurações"
-- Para mudar de monitor: mova a janela para o monitor desejado usando o Gerenciador de Tarefas do Windows
+- **Para fechar**: clique com botão direito no ícone da bandeja e selecione "Fechar Tela de Avisos"
+- **Para configurar**: clique com botão direito no ícone da bandeja e selecione "Configurações"
+- **Para mudar de monitor**: passe o mouse sobre a tela para ver os botões de navegação (← →) e clique neles para alternar entre monitores
 
 ## Recursos Técnicos
 
-- Desenvolvido com Electron
+- Desenvolvido com Electron 28.1.0
 - Suporte a Windows 7 ou superior
 - Executável portátil (não requer instalação)
 - Baixo consumo de recursos
 - Configurações persistentes entre reinicializações
+- Monitoramento em tempo real de mudanças na pasta de vídeos
+- Suporte a múltiplos formatos de vídeo
 
 ## Solução de Problemas
 
 1. **Vídeo não inicia**
-   - Verifique sua conexão com a internet
-   - Confirme se a URL da playlist está correta
-   - Verifique se a playlist não está privada
+   - Verifique se a pasta selecionada contém vídeos
+   - Confirme se os arquivos são de um formato suportado (MP4, AVI, MOV, etc.)
+   - Verifique se você tem permissão para acessar a pasta
+   - Certifique-se de que os arquivos de vídeo não estão corrompidos
 
 2. **Tela preta**
-   - O programa tentará reconectar automaticamente
-   - Verifique sua conexão com a internet
+   - Verifique se há vídeos na pasta selecionada
+   - Confirme se os vídeos estão em formatos suportados
+   - Tente selecionar uma pasta diferente e depois voltar para a original
    - Reinicie o programa se necessário
 
 3. **Monitor errado**
-   - Use o Gerenciador de Tarefas para mover para o monitor correto
+   - Passe o mouse sobre a tela para ver os botões de navegação
+   - Use os botões ← → para alternar entre monitores
    - O programa lembrará a última posição
+
+4. **Novos vídeos não aparecem**
+   - O aplicativo detecta automaticamente novos vídeos adicionados à pasta
+   - Aguarde alguns segundos após adicionar novos vídeos
+   - Se necessário, recarregue o aplicativo
 
 ## Contribuição
 

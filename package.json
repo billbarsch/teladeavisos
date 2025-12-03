@@ -1,7 +1,7 @@
 {
     "name": "tela-de-avisos",
-    "version": "1.1.0",
-    "description": "Tela de Avisos - Reprodutor de playlist do YouTube em tela cheia",
+    "version": "1.2.0",
+    "description": "Tela de Avisos - Reprodutor de vídeos locais em tela cheia",
     "main": "main.js",
     "scripts": {
         "start": "electron .",
